@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="nb">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex">
+  <title>Finn musen · Klättermusen Oslo</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="page">
+    <header class="topbar">
+      <span class="wordmark">Klättermusen Oslo</span>
+    </header>
+
+    <main>
+      <div class="banner" id="banner" hidden></div>
+
+      <div class="progress" id="progress" role="img" aria-label="" hidden>
+        <span></span><span></span><span></span>
+      </div>
+
+      <section class="screen spaced" id="screen-start">
+        <h1 tabindex="-1">Finn musen</h1>
+        <p>Et musehode er gjemt i et av kunstverkene. Finn det og vis oss hvor. Riktig svar gir ett lodd i trekningen av en håndmalt Meile-jakke.</p>
+      </section>
+
+      <section class="screen" id="screen-step1" hidden>
+        <h2 tabindex="-1">Hvor henger verket?</h2>
+        <p class="help" id="map-help"></p>
+        <div class="picker-wrap" id="map-wrap">
+          <div id="map"></div>
+        </div>
+      </section>
+
+      <section class="screen" id="screen-step2" hidden>
+        <h2 tabindex="-1">Hvor er musen på verket?</h2>
+        <p class="help" id="work-help">Velg formatet på verket, og trykk der musen er.</p>
+        <fieldset>
+          <legend>Format</legend>
+          <div class="chips" id="shape-chips">
+            <button type="button" class="chip" data-value="staende" aria-pressed="true">Stående</button>
+            <button type="button" class="chip" data-value="liggende" aria-pressed="false">Liggende</button>
+            <button type="button" class="chip" data-value="kvadratisk" aria-pressed="false">Kvadratisk</button>
+          </div>
+        </fieldset>
+        <div class="work-slot"><div id="work"></div></div>
+        <fieldset>
+          <legend>Hvis flere verk henger side om side, hvilket er det?</legend>
+          <div class="chips" id="group-chips">
+            <button type="button" class="chip" data-value="alene" aria-pressed="true">Ett verk</button>
+            <button type="button" class="chip" data-value="venstre" aria-pressed="false">Venstre</button>
+            <button type="button" class="chip" data-value="midten" aria-pressed="false">Midten</button>
+            <button type="button" class="chip" data-value="hoyre" aria-pressed="false">Høyre</button>
+          </div>
+          <p class="help">Venstre og høyre sett fra der du står foran verkene.</p>
+        </fieldset>
+      </section>
+
+      <section class="screen" id="screen-step3" hidden>
+        <h2 tabindex="-1">Navn og mobilnummer</h2>
+        <form id="form" novalidate class="form">
+          <div class="field">
+            <label for="name">Navn</label>
+            <input id="name" name="name" type="text" autocomplete="name" maxlength="80" aria-describedby="err-name">
+            <p class="error" id="err-name" hidden></p>
+          </div>
+          <div class="field">
+            <label for="phone">Mobilnummer</label>
+            <input id="phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" aria-describedby="err-phone">
+            <p class="error" id="err-phone" hidden></p>
+          </div>
+          <input class="hp" id="hp" type="text" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+          <p class="help">Én deltakelse per mobilnummer, og det første svaret gjelder. Vi bruker opplysningene til å håndtere trekningen, ikke til markedsføring.</p>
+          <p class="error" id="err-form" hidden></p>
+        </form>
+      </section>
+
+      <section class="screen spaced" id="screen-done" hidden>
+        <h2 tabindex="-1">Svaret er sendt inn</h2>
+        <p id="done-text"></p>
+      </section>
+
+      <section class="screen spaced" id="screen-closed" hidden>
+        <h2 tabindex="-1">Innsendingen er stengt</h2>
+        <p>Takk til alle som var med.</p>
+      </section>
+
+      <div class="nav" id="nav">
+        <button type="button" class="btn btn-secondary" id="back" hidden>Tilbake</button>
+        <button type="button" class="btn btn-primary" id="next">Start</button>
+      </div>
+    </main>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="common.js"></script>
+  <script src="picker.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

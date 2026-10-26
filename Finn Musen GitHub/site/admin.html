@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="nb">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Administrasjon · Finn musen</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="page wide">
+    <header class="topbar">
+      <span class="wordmark">Administrasjon</span>
+      <div class="h-actions" id="top-actions" hidden>
+        <span class="state-text" id="open-text"></span>
+        <button type="button" class="btn btn-secondary small" id="toggle-open"></button>
+        <button type="button" class="btn btn-secondary small" id="refresh">Oppdater</button>
+      </div>
+    </header>
+
+    <main>
+      <div class="banner" id="banner" hidden></div>
+
+      <section class="login" id="login">
+        <form id="login-form" novalidate>
+          <div class="field">
+            <label for="pw">Passord</label>
+            <input id="pw" type="password" autocomplete="current-password">
+            <p class="error" id="login-error" hidden></p>
+          </div>
+          <button type="submit" class="btn btn-primary" id="login-btn">Logg inn</button>
+        </form>
+      </section>
+
+      <div id="app" hidden>
+        <div class="tabs" role="tablist">
+          <button type="button" class="tab" role="tab" data-tab="answers" aria-selected="true">Svar</button>
+          <button type="button" class="tab" role="tab" data-tab="fasit" aria-selected="false">Fasit</button>
+          <button type="button" class="tab" role="tab" data-tab="draw" aria-selected="false">Trekning</button>
+        </div>
+        <div id="panel"></div>
+      </div>
+    </main>
+  </div>
+
+  <dialog id="review" aria-labelledby="review-title"></dialog>
+
+  <script src="config.js"></script>
+  <script src="common.js"></script>
+  <script src="picker.js"></script>
+  <script src="admin.js"></script>
+</body>
+</html>

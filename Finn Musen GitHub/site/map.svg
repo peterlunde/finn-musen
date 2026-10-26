@@ -1,0 +1,31 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="170 118 555 1378" width="555" height="1378" fill="none"><g id="Gulv"><path id="Butikkgulv" fill="#F2F2F0" d="M198 160H376V186H430V146H614V254H658V360H534L566 506L633 807L697 857L566 986L610 1054.5L609 1056L688 1175L394 1466H252C216 1454 198 1429 198 1391V657H243V542H198Z M566 986L456 933.75Q446 929 436 935C421 944 388 964 368 986C341 1015 319 1064 312 1082Q309.5 1088 310.5 1095L316 1130Q317.5 1141.5 328 1146.5L434 1197.25Q446 1203 455 1195L574 1088L590 1074.5L610 1054.5L566 986Z" fill-rule="evenodd" /></g><g id="Vegger"><path d="M198 160V542H243V657H198V1391C198 1429 216 1454 252 1466" stroke-width="6" stroke="#676C6D" stroke-linejoin="round" stroke-linecap="round" id="Vegger-1" />
+<path d="M198 160H376V186H430V146H614" stroke-width="6" stroke="#676C6D" stroke-linejoin="round" stroke-linecap="round" id="Vegger-2" />
+<path d="M534 360L566 506L633 807L697 857L566 986" stroke-width="6" stroke="#676C6D" stroke-linejoin="round" stroke-linecap="round" id="Vegger-3" />
+<path d="M609 1056L688 1175L394 1466H312" stroke-width="6" stroke="#676C6D" stroke-linejoin="round" stroke-linecap="round" id="Vegger-4" />
+<path d="M566 986L456 933.75Q446 929 436 935C421 944 388 964 368 986C341 1015 319 1064 312 1082Q309.5 1088 310.5 1095L316 1130Q317.5 1141.5 328 1146.5L434 1197.25Q446 1203 455 1195L574 1088L590 1074.5L610 1054.5L566 986Z" stroke-width="6" stroke="#676C6D" stroke-linejoin="round" stroke-linecap="round" id="Vegger-5" />
+<path id="Fitting-rooms" d="M614 146V254H658V360H534L532 354M614 254H508L520 300" stroke="#676C6D" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" /><path id="Fitting-entry" d="M474 146L493 204" stroke="#676C6D" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" /></g><g id="Soyler"><path d="M407 384H377V476H407V384Z" fill="#979C9C" id="Soyler-9" />
+<path d="M431 705H400V777H431V705Z" fill="#979C9C" id="Soyler-10" />
+<path d="M227 360H198V432H227V360Z" fill="#676C6D" id="Soyler-11" />
+<path d="M231 815H198V861H231V815Z" fill="#676C6D" id="Soyler-12" />
+<path d="M231 1037H198V1082H231V1037Z" fill="#676C6D" id="Soyler-13" />
+<path d="M230 1264H198V1307H230V1264Z" fill="#676C6D" id="Soyler-14" />
+<path d="M522 1283L552 1254L582 1284L551 1314L522 1283Z" fill="#676C6D" id="Soyler-16" />
+</g><g id="DJ-bord"><path d="M478 622L514 614L539 721L503 731L478 622Z" fill="#BFC3C2" id="DJ-bord-17" />
+</g><g id="Rails"><path d="M232 177H352" stroke-width="10" stroke-linecap="round" stroke="#929897" id="Rails-18" />
+<path d="M214 451L213 529" stroke-width="10" stroke-linecap="round" stroke="#929897" id="Rails-19" />
+<path d="M220 910V1003" stroke-width="10" stroke-linecap="round" stroke="#929897" id="Rails-20" />
+<path d="M220 1139V1235" stroke-width="10" stroke-linecap="round" stroke="#929897" id="Rails-21" />
+<path d="M220 1325V1390" stroke-width="10" stroke-linecap="round" stroke="#929897" id="Rails-22" />
+<path d="M557 605L594 745" stroke-width="10" stroke-linecap="round" stroke="#929897" id="Rails-23" />
+<path d="M573 948L657 872" stroke-width="10" stroke-linecap="round" stroke="#929897" id="Rails-24" />
+<path d="M340.688 981L408.363 930" stroke-width="10" stroke-linecap="round" stroke="#929897" id="Rails-25" />
+<path d="M294 1076L325 1010" stroke-width="10" stroke-linecap="round" stroke="#929897" id="Rails-26" />
+<path d="M317.239 1155.22L424.481 1209.7" stroke-width="10" stroke-linecap="round" stroke="#929897" id="Rails-27" />
+<path d="M474 1194.88L571.509 1107.68" stroke-width="10" stroke-linecap="round" stroke="#929897" id="Rails-28" />
+<path d="M601 1084L614 1103" stroke-width="10" stroke-linecap="round" stroke="#929897" id="Rails-29" />
+<path d="M623 1115L636 1134" stroke-width="10" stroke-linecap="round" stroke="#929897" id="Rails-30" />
+<path d="M647 1147L660 1166" stroke-width="10" stroke-linecap="round" stroke="#929897" id="Rails-31" />
+<path d="M582 1252L636 1200" stroke-width="10" stroke-linecap="round" stroke="#929897" id="Rails-32" />
+<path d="M436 1390L509 1314" stroke-width="10" stroke-linecap="round" stroke="#929897" id="Rails-33" />
+</g><g id="Inngang"><path id="Dorblad" d="M252 1466V1406" stroke="#676C6D" stroke-width="4" stroke-linecap="butt" /><path id="Dorens-slagretning" d="M252 1406A60 60 0 0 1 312 1466" stroke="#A7ACAC" stroke-width="2" stroke-linecap="round" /></g></svg>
