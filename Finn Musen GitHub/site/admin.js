@@ -89,14 +89,15 @@
   }
 
   /* ---------- Faner ---------- */
-  Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (btn) {
-    btn.addEventListener('click', function () {
-      S.tab = btn.dataset.tab;
-      Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (t) {
-        t.setAttribute('aria-selected', t === btn ? 'true' : 'false');
-      });
-      renderTab();
+  function selectTab(name) {
+    S.tab = name;
+    Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (t) {
+      t.setAttribute('aria-selected', t.dataset.tab === name ? 'true' : 'false');
     });
+    renderTab();
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (btn) {
+    btn.addEventListener('click', function () { selectTab(btn.dataset.tab); });
   });
 
   function renderTab() {
@@ -319,7 +320,7 @@
     }
     wrap.appendChild(h('p', { class: d.works.length ? 'count-line' : 'help' },
       d.works.length
-        ? d.works.length + ' verk. Gjestene ser verket som henger nærmest der de trykker på kartet.'
+        ? d.works.length + ' verk. Gjestene ser verket som henger nærmest der de trykker på kartet. Musen markerer du under Fasit.'
         : 'Ingen verk er lagt inn. Uten verk får gjestene en tom ramme å trykke i. Legg inn et bilde av hvert verk og marker hvor det henger.'));
     wrap.appendChild(h('div', { class: 'actions' },
       h('button', { type: 'button', class: 'btn btn-primary', onclick: function () { S.worksView = { mode: 'add' }; renderTab(); } }, 'Legg til verk')));
@@ -343,6 +344,14 @@
 
     var wrap = h('section', { class: 'admin-section' });
     wrap.appendChild(h('h2', null, existing ? 'Endre verk' : 'Nytt verk'));
+    if (existing) {
+      wrap.appendChild(h('div', { class: 'callout' },
+        h('p', { class: 'callout-title' }, 'Hvor er musen på dette verket?'),
+        h('p', null, 'Musen markerer du under Fasit, ikke her. Der velger du verket og trykker der musen sitter.'),
+        h('div', { class: 'actions' }, h('button', { type: 'button', class: 'btn btn-secondary small', onclick: function () {
+          S.worksView = null; S.fasitWork = existing.id; selectTab('fasit');
+        } }, 'Marker musen på dette verket'))));
+    }
 
     var err = h('p', { class: 'error', hidden: true });
     var save = h('button', { type: 'button', class: 'btn btn-primary' }, 'Lagre');
@@ -497,6 +506,10 @@
     var F = d.fasit && d.fasit.workId
       ? { workId: d.fasit.workId, mouse: d.fasit.mouse }
       : { workId: d.works[0].id, mouse: null };
+    if (S.fasitWork && workById(S.fasitWork)) { // kom hit fra «Marker musen» på et verk
+      F = S.fasitWork === F.workId ? F : { workId: S.fasitWork, mouse: null };
+    }
+    S.fasitWork = null;
     if (!workById(F.workId)) F = { workId: d.works[0].id, mouse: null };
 
     var wrap = h('section', { class: 'admin-section' });
