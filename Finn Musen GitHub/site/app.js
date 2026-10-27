@@ -259,19 +259,52 @@
   }
 
   /* ---------- Navigasjon ---------- */
-  $('next').addEventListener('click', function () {
+  // Trykk på knappene håndteres både som touch og som klikk. iOS Safari hopper av og til over klikket
+  // etter et trykk, og da skjer ingenting. Skjer begge, regnes det som ett trykk.
+  function onTap(el, fn) {
+    var lastTouch = 0, sx = 0, sy = 0, moved = false;
+    el.addEventListener('touchstart', function (e) {
+      var t = e.touches[0]; sx = t.clientX; sy = t.clientY; moved = false;
+    }, { passive: true });
+    el.addEventListener('touchmove', function (e) {
+      var t = e.touches[0];
+      if (Math.abs(t.clientX - sx) > 10 || Math.abs(t.clientY - sy) > 10) moved = true;
+    }, { passive: true });
+    el.addEventListener('touchend', function (e) {
+      if (moved) return;
+      e.preventDefault(); // hindrer at nettleseren sender et ekstra klikk
+      lastTouch = Date.now();
+      if (!el.disabled) fn();
+    });
+    el.addEventListener('click', function () {
+      if (Date.now() - lastTouch < 600 || el.disabled) return;
+      fn();
+    });
+  }
+
+  onTap($('next'), function () {
     if (state.screen === 'start') show('step1');
     else if (state.screen === 'step1') show('step2');
     else if (state.screen === 'step2') show('step3');
     else if (state.screen === 'step3') submit();
   });
-  $('back').addEventListener('click', function () { history.back(); });
+  onTap($('back'), function () { history.back(); });
   window.addEventListener('popstate', function (e) {
     var s = e.state && e.state.s;
     if (s === 'closed' || s === 'done') s = state.screen === s ? s : 'start';
     show(SCREENS.indexOf(s) >= 0 ? s : 'start', true);
   });
   $('form').addEventListener('submit', function (e) { e.preventDefault(); submit(); });
+
+  /* ---------- Feilmelding hvis noe uventet skjer ---------- */
+  function reportProblem(msg) {
+    var el = $('banner');
+    if (!el || !el.hidden) return;
+    el.textContent = 'Noe gikk galt på siden (' + String(msg || 'ukjent feil').slice(0, 120) + '). Last siden på nytt og prøv igjen.';
+    el.hidden = false;
+  }
+  window.addEventListener('error', function (e) { reportProblem(e.message); });
+  window.addEventListener('unhandledrejection', function (e) { reportProblem(e.reason && e.reason.message); });
 
   /* ---------- Oppstart ---------- */
   show('start');
