@@ -419,6 +419,7 @@ function addWork_(req) {
 function updateWork_(req) {
   const name = cleanWorkName_(req.name);
   const pos = point_(req.pos);
+  const aspect = Math.round(Number(req.aspect) * 1000) / 1000;
   if (!name || !pos) throw new Error('invalid');
   return withLock_(function () {
     const w = readWorks_(false).filter(function (x) { return x.id === String(req.id || ''); })[0];
@@ -427,7 +428,17 @@ function updateWork_(req) {
     sh.getRange(w.row, 2).setNumberFormat('@').setValue(name);
     sh.getRange(w.row, 3, 1, 2).setValues([[pos.x, pos.y]]);
     const s = readSettings_();
-    if (s.fasit && s.fasit.workId === w.id) { s.fasit.map = pos; writeSettings_(s); }
+    if (s.fasit && s.fasit.workId === w.id) { s.fasit.map = pos; }
+    if (req.image) { // nytt bilde (og dermed kanskje nytt format)
+      if (!validImage_(req.image) || !(aspect >= 0.2 && aspect <= 5)) throw new Error('invalid');
+      sh.getRange(w.row, 5).setValue(aspect);
+      sh.getRange(w.row, WORK_FIXED + 1, 1, IMG_CHUNKS).setNumberFormat('@');
+      const chunks = [];
+      for (let i = 0; i < IMG_CHUNKS; i++) chunks.push(req.image.slice(i * IMG_CHUNK, (i + 1) * IMG_CHUNK));
+      sh.getRange(w.row, WORK_FIXED + 1, 1, IMG_CHUNKS).setValues([chunks]);
+      if (s.fasit && s.fasit.workId === w.id) s.fasit.ratio = 1 / aspect;
+    }
+    writeSettings_(s);
     return { ok: true };
   });
 }

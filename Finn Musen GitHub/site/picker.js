@@ -121,6 +121,18 @@
   MapPicker.prototype.setPin = function (name, p, kind) {
     placePin(this.stage, this.pins, name, p, kind);
   };
+  /* Viser slingringsmonnet som en sirkel rundt et punkt. Radius er prosent av kartbredden. */
+  MapPicker.prototype.setZone = function (p, percent) {
+    if (this.zone) { this.zone.remove(); this.zone = null; }
+    if (!p || !(percent > 0)) return;
+    var d = (percent / 100) * MAP.w * 2;
+    this.zone = h('span', { class: 'zone' });
+    this.zone.style.left = (p.x * MAP.w) + 'px';
+    this.zone.style.top = (p.y * MAP.h) + 'px';
+    this.zone.style.width = d + 'px';
+    this.zone.style.height = d + 'px';
+    this.stage.insertBefore(this.zone, this.stage.children[1] || null);
+  };
 
   MapPicker.prototype._tap = function (clientX, clientY) {
     var rect = this.root.getBoundingClientRect();
@@ -246,6 +258,16 @@
   };
   WorkPicker.prototype.setPin = function (name, p, kind) {
     placePin(this.root, this.pins, name, p, kind);
+  };
+  /* Slingringsmonnet som sirkel. Radius er prosent av verkets bredde, slik svarsjekken regner. */
+  WorkPicker.prototype.setZone = function (p, percent) {
+    if (this.zone) { this.zone.remove(); this.zone = null; }
+    if (!p || !(percent > 0)) return;
+    this.zone = h('span', { class: 'zone zone-work' });
+    this.zone.style.left = (p.x * 100) + '%';
+    this.zone.style.top = (p.y * 100) + '%';
+    this.zone.style.width = (percent * 2) + '%';
+    this.root.appendChild(this.zone);
   };
 
   /* Zoomknapper som legges i en .picker-wrap ved siden av kartet */

@@ -92,8 +92,11 @@
     }).sort(function (a, b) { return a.d - b.d; }).slice(0, n).map(function (o) { return o.w; });
   }
 
+  function forgetImage(id) { delete imageCache[id]; }
+
   window.Common = {
     workImage: workImage,
+    forgetImage: forgetImage,
     nearestWorks: nearestWorks,
     h: h,
     normalizePhone: normalizePhone,

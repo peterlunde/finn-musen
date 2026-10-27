@@ -7,7 +7,6 @@
 
   function $(id) { return document.getElementById(id); }
 
-  var SHAPE_LABEL = { staende: 'Stående', liggende: 'Liggende', kvadratisk: 'Kvadratisk' };
   var ERRORS = {
     unauthorized: 'Feil passord.',
     password_not_set: 'Passordet er ikke satt i Code.gs ennå.',
@@ -31,7 +30,13 @@
 
   /* ---------- Innlogging ---------- */
   function loadState() {
-    return api('admin.state').then(function (res) { S.data = res; return res; });
+    return api('admin.state').then(function (res) {
+      // Eldre versjoner av backend kjenner ikke til verk. Da er works ikke med i svaret.
+      res.backendOld = !Array.isArray(res.works);
+      if (res.backendOld) res.works = [];
+      S.data = res;
+      return res;
+    });
   }
 
   function login(password) {
@@ -244,6 +249,7 @@
     mapWrap.appendChild(P.zoomTools(mp));
     mp.setPin('answer', a.map, 'answer');
     if (f) mp.setPin('fasit', f.map, 'fasit');
+    if (f && !f.workId) mp.setZone(f.map, S.data.tolMap);
     var wp = new P.WorkPicker(workBox, { readOnly: true });
     var aw = a.workId ? workById(a.workId) : null;
     if (aw) {
@@ -254,7 +260,7 @@
     }
     wp.hint.hidden = true;
     wp.setPin('answer', a.mouse, 'answer');
-    if (f && (!f.workId || f.workId === a.workId)) wp.setPin('fasit', f.mouse, 'fasit');
+    if (f && (!f.workId || f.workId === a.workId)) { wp.setPin('fasit', f.mouse, 'fasit'); wp.setZone(f.mouse, S.data.tolWork); }
   }
 
   function workById(id) {
@@ -268,7 +274,7 @@
   /* ---------- Verk ---------- */
   var IMG_LIMIT = 440000; // tegn i data-URL-en. Må være under grensen i Code.gs (450 000).
 
-  /** Leser et bilde, skalerer det ned og lagrer som JPEG under størrelsesgrensen. */
+  /** Leser et bilde, skalerer det ned og lagrer som JPEG under størrelsesgrensen. Proporsjonene følger bildet. */
   function prepareImage(file) {
     return new Promise(function (resolve, reject) {
       var url = URL.createObjectURL(file);
@@ -277,16 +283,17 @@
         URL.revokeObjectURL(url);
         var w0 = img.naturalWidth, h0 = img.naturalHeight;
         if (!w0 || !h0) { reject(new Error('bad_image')); return; }
+        var sx = 0, sy = 0, sw = w0, sh = h0;
         var sizes = [1100, 1000, 900, 800, 700, 600, 500];
         for (var i = 0; i < sizes.length; i++) {
-          var k = Math.min(1, sizes[i] / Math.max(w0, h0));
-          var cw = Math.max(1, Math.round(w0 * k)), ch = Math.max(1, Math.round(h0 * k));
+          var k = Math.min(1, sizes[i] / Math.max(sw, sh));
+          var cw = Math.max(1, Math.round(sw * k)), ch = Math.max(1, Math.round(sh * k));
           var cv = document.createElement('canvas');
           cv.width = cw; cv.height = ch;
           var ctx = cv.getContext('2d');
           ctx.fillStyle = '#fff';
           ctx.fillRect(0, 0, cw, ch);
-          ctx.drawImage(img, 0, 0, cw, ch);
+          ctx.drawImage(img, sx, sy, sw, sh, 0, 0, cw, ch);
           for (var q = 0.85; q >= 0.5; q -= 0.1) {
             var data = cv.toDataURL('image/jpeg', q);
             if (data.length <= IMG_LIMIT) { resolve({ image: data, aspect: cw / ch }); return; }
@@ -305,6 +312,11 @@
     if (v) return viewWorkForm(v);
 
     var wrap = h('section', { class: 'admin-section' });
+    if (d.backendOld) {
+      wrap.appendChild(h('p', { class: 'error' },
+        'Backend i Apps Script er en eldre versjon som ikke kan lagre verk. Lim inn den nye Code.gs, behold passordet ditt, og velg Distribuer → Administrer distribusjoner → blyanten → Ny versjon → Distribuer. Trykk så Oppdater.'));
+      return wrap;
+    }
     wrap.appendChild(h('p', { class: d.works.length ? 'count-line' : 'help' },
       d.works.length
         ? d.works.length + ' verk. Gjestene ser verket som henger nærmest der de trykker på kartet.'
@@ -341,28 +353,33 @@
     nameInput.addEventListener('input', function () { F.name = nameInput.value; refreshSave(); });
     wrap.appendChild(h('div', { class: 'field' }, h('label', { for: 'work-name' }, 'Navn på verket'), nameInput));
 
-    if (!existing) {
-      var preview = h('div', { class: 'work-preview', hidden: true });
-      var fileInput = h('input', { id: 'work-file', type: 'file', accept: 'image/*' });
-      var fileMsg = h('p', { class: 'help' }, 'Zoom gjerne litt ut, så hele verket er med. Bildet skaleres ned automatisk.');
-      fileInput.addEventListener('change', function () {
-        var f = fileInput.files && fileInput.files[0];
-        F.image = null; refreshSave(); preview.hidden = true;
-        if (!f) return;
-        fileMsg.textContent = 'Behandler bildet…';
-        prepareImage(f).then(function (r) {
-          F.image = r.image; F.aspect = r.aspect;
-          preview.textContent = '';
-          preview.appendChild(h('img', { src: r.image, alt: 'Forhåndsvisning' }));
-          preview.hidden = false;
-          fileMsg.textContent = 'Bildet er klart.';
-          refreshSave();
-        }).catch(function (ex) {
-          fileMsg.textContent = ex.message === 'too_big' ? 'Bildet ble for stort selv etter nedskalering. Prøv et annet.' : 'Kunne ikke lese bildet. Prøv et annet.';
-        });
+    var chosenFile = null;
+    var preview = h('div', { class: 'work-preview', hidden: true });
+    var fileInput = h('input', { id: 'work-file', type: 'file', accept: 'image/*' });
+    var fileMsg = h('p', { class: 'help' }, existing
+      ? 'Du kan bytte bilde. Lar du feltet stå tomt, beholdes bildet som ligger der.'
+      : 'Ha hele verket med i bildet. Bildet skaleres ned automatisk.');
+    function process() {
+      F.image = null; refreshSave(); preview.hidden = true;
+      if (!chosenFile) return;
+      fileMsg.textContent = 'Behandler bildet…';
+      prepareImage(chosenFile).then(function (r) {
+        F.image = r.image; F.aspect = r.aspect;
+        preview.textContent = '';
+        preview.appendChild(h('img', { src: r.image, alt: 'Forhåndsvisning' }));
+        preview.hidden = false;
+        fileMsg.textContent = 'Bildet er klart.';
+        refreshSave();
+      }).catch(function (ex) {
+        fileMsg.textContent = ex.message === 'too_big' ? 'Bildet ble for stort selv etter nedskalering. Prøv et annet.' : 'Kunne ikke lese bildet. Prøv et annet.';
       });
-      wrap.appendChild(h('div', { class: 'field' }, h('label', { for: 'work-file' }, 'Bilde av verket'), fileInput, fileMsg, preview));
     }
+    fileInput.addEventListener('change', function () {
+      chosenFile = fileInput.files && fileInput.files[0] || null;
+      process();
+    });
+    wrap.appendChild(h('div', { class: 'field' },
+      h('label', { for: 'work-file' }, existing ? 'Nytt bilde (valgfritt)' : 'Bilde av verket'), fileInput, fileMsg, preview));
 
     var mapBox = h('div', { class: 'compact' });
     var mapWrap = h('div', { class: 'picker-wrap' }, mapBox);
@@ -384,9 +401,9 @@
     save.addEventListener('click', function () {
       save.disabled = true; err.hidden = true;
       var req = existing
-        ? api('admin.updateWork', { id: existing.id, name: F.name.trim(), pos: F.pos })
+        ? api('admin.updateWork', { id: existing.id, name: F.name.trim(), pos: F.pos, image: F.image || undefined, aspect: F.image ? F.aspect : undefined })
         : api('admin.addWork', { name: F.name.trim(), pos: F.pos, aspect: F.aspect, image: F.image });
-      req.then(function () { S.worksView = null; return refresh(); }).catch(function (ex) {
+      req.then(function () { if (existing && F.image) C.forgetImage(existing.id); S.worksView = null; return refresh(); }).catch(function (ex) {
         err.textContent = ex.message === 'invalid' ? 'Noe er ugyldig. Sjekk navn, bilde og plassering.' : errText(ex.message);
         err.hidden = false; refreshSave();
       });
@@ -412,7 +429,7 @@
 
     var wrap = h('section', { class: 'admin-section' });
     wrap.appendChild(h('p', { class: d.fasit ? 'count-line' : 'help' },
-      d.fasit ? 'Fasit er satt. Endringer gjelder alle svar når du lagrer.' : 'Fasit er ikke satt. Marker verket på kartet og musen på verket, og lagre.'));
+      d.fasit ? 'Fasit er satt. Endringer gjelder alle svar når du lagrer.' : 'Fasit er ikke satt. Marker verket på kartet og musen på verket, og lagre. Legg gjerne inn bilder av verkene under Verk, så ser gjestene selve verket.'));
 
     var save = h('button', { type: 'button', class: 'btn btn-primary' }, 'Lagre fasit');
     var msg = h('p', { class: 'count-line' });
@@ -422,22 +439,17 @@
     var mapWrap = h('div', { class: 'picker-wrap' }, mapBox);
     var workBox = h('div', { class: 'compact' });
 
-    var shapeChips = chipRow(SHAPE_LABEL, function () { return F.shape; }, function (v) {
-      if (v === F.shape) return;
-      F.shape = v; wp.setShape(v); wp.setValue(null);
-    });
-    
     var tolMap = numberField('Toleranse på kartet (% av kartbredden)', d.tolMap);
     var tolWork = numberField('Toleranse på verket (% av verkets bredde)', d.tolWork);
+    var tolHelp = h('p', { class: 'help' }, 'Sirkelen viser hvor langt unna et svar kan ligge og fortsatt stemme.');
 
     wrap.appendChild(h('div', { class: 'two-col' },
       h('div', { class: 'review-col' },
         h('p', { class: 'help' }, 'Hvor henger verket?'), mapWrap),
       h('div', { class: 'review-col' },
-        h('fieldset', null, h('legend', null, 'Format på verket'), shapeChips,
-          h('p', { class: 'help' }, 'Gjestene ser en ramme i dette formatet når de skal markere musen.')),
         h('div', { class: 'work-slot' }, workBox))));
     wrap.appendChild(h('div', { class: 'tol' }, tolMap.el, tolWork.el));
+    wrap.appendChild(tolHelp);
     wrap.appendChild(h('div', { class: 'actions' }, save));
     wrap.appendChild(msg);
 
@@ -461,13 +473,20 @@
 
     // Plukkerne lages etter at elementene ligger i dokumentet
     var mp, wp;
+    function zones() {
+      if (mp) mp.setZone(F.map, Number(tolMap.input.value));
+      if (wp) wp.setZone(F.mouse, Number(tolWork.input.value));
+    }
+    tolMap.input.addEventListener('input', zones);
+    tolWork.input.addEventListener('input', zones);
     setTimeout(function () {
-      mp = new P.MapPicker(mapBox, { onChange: function (p) { F.map = p; refreshSave(); } });
+      mp = new P.MapPicker(mapBox, { onChange: function (p) { F.map = p; refreshSave(); zones(); } });
       mapWrap.appendChild(P.zoomTools(mp));
       mp.setValue(F.map, true);
-      wp = new P.WorkPicker(workBox, { hint: 'Trykk der musen er', onChange: function (p) { F.mouse = p; refreshSave(); } });
+      wp = new P.WorkPicker(workBox, { hint: 'Trykk der musen er', onChange: function (p) { F.mouse = p; refreshSave(); zones(); } });
       wp.setShape(F.shape);
       wp.setValue(F.mouse, true);
+      zones();
     }, 0);
     refreshSave();
     return wrap;
@@ -511,6 +530,7 @@
     wrap.appendChild(h('fieldset', null, h('legend', null, 'Verk'), chips));
     wrap.appendChild(h('div', { class: 'work-slot' }, workBox));
     wrap.appendChild(h('div', { class: 'tol' }, tolWork.el));
+    wrap.appendChild(h('p', { class: 'help' }, 'Sirkelen viser hvor langt unna musen et svar kan ligge og fortsatt stemme.'));
     wrap.appendChild(h('div', { class: 'actions' }, save));
     wrap.appendChild(msg);
 
@@ -533,10 +553,13 @@
     });
 
     var wp;
+    function zone() { if (wp) wp.setZone(F.mouse, Number(tolWork.input.value)); }
+    tolWork.input.addEventListener('input', zone);
     setTimeout(function () {
-      wp = new P.WorkPicker(workBox, { hint: 'Trykk der musen er', onChange: function (p) { F.mouse = p; refreshSave(); } });
+      wp = new P.WorkPicker(workBox, { hint: 'Trykk der musen er', onChange: function (p) { F.mouse = p; refreshSave(); zone(); } });
       showWork();
       wp.setValue(F.mouse, true);
+      zone();
     }, 0);
     refreshSave();
     return wrap;

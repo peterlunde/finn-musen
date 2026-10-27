@@ -223,7 +223,10 @@ legend { padding: 0; margin-bottom: var(--s2); font-size: 14px; font-weight: 700
 .work-frame.compact[data-shape="image"] { --maxh: 300px; }
 .work-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: fill; pointer-events: none; -webkit-user-drag: none; user-select: none; }
 .work-hint { position: relative; font-size: 14px; color: var(--muted); pointer-events: none; }
-.work-frame .pin { z-index: 1; }
+.work-frame .pin { z-index: 2; }
+.zone { position: absolute; transform: translate(-50%, -50%); border-radius: 50%; background: rgba(55, 172, 226, .18); border: calc(2px / var(--z, 1)) solid var(--accent); pointer-events: none; box-sizing: border-box; }
+.zone-work { aspect-ratio: 1; border-width: 2px; z-index: 1; }
+.format-note { font-size: 14px; color: var(--muted); }
 .work-hint { padding: 0 var(--s2); text-align: center; }
 .work-hint.on-image { background: rgba(255, 255, 255, .88); border-radius: var(--radius); padding: var(--s1) var(--s2); }
 .switch { display: flex; flex-direction: column; gap: var(--s2); }
