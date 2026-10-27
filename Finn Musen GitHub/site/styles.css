@@ -116,16 +116,24 @@ main { flex: 1; display: flex; flex-direction: column; }
 fieldset { margin: 0; padding: 0; border: 0; min-width: 0; display: flex; flex-direction: column; gap: var(--s2); }
 legend { padding: 0; margin-bottom: var(--s2); font-size: 14px; font-weight: 700; }
 
+/* Knappelinjen er fast i bunnen av skjermen. position: sticky ga på iOS Safari knapper som sluttet å svare
+   etter trykk på kunstverket, helt til man scrollet. */
 .nav {
-  position: sticky;
+  position: fixed;
+  left: 0;
+  right: 0;
   bottom: 0;
+  z-index: 10;
   display: flex;
   gap: var(--s2);
-  margin: auto calc(-1 * var(--s3)) 0;
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
   padding: var(--s3) var(--s3) calc(var(--s3) + env(safe-area-inset-bottom, 0px));
   background: var(--bg);
   border-top: 1px solid var(--line);
 }
+main.has-nav { padding-bottom: calc(81px + env(safe-area-inset-bottom, 0px)); }
 .nav .btn-primary { flex: 1; }
 
 /* ---------- Skjema ---------- */
