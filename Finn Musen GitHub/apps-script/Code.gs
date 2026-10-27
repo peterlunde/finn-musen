@@ -13,9 +13,9 @@ const ADMIN_PASSWORD = 'ENDRE-MEG';
 
 const TIME_ZONE = 'Europe/Oslo';
 const SHEET_NAME = 'Svar';
-const HEADERS = ['Tidspunkt', 'ID', 'Navn', 'Mobil', 'Kart X', 'Kart Y', 'Format', 'Plassering', 'Mus X', 'Mus Y', 'Status'];
+const HEADERS = ['Tidspunkt', 'ID', 'Navn', 'Mobil', 'Kart X', 'Kart Y', 'Format', 'Plassering', 'Mus X', 'Mus Y', 'Status', 'Verk'];
 const NCOLS = HEADERS.length;
-const COL = { TIME: 1, ID: 2, NAME: 3, PHONE: 4, MX: 5, MY: 6, SHAPE: 7, GROUP: 8, WX: 9, WY: 10, STATUS: 11 };
+const COL = { TIME: 1, ID: 2, NAME: 3, PHONE: 4, MX: 5, MY: 6, SHAPE: 7, GROUP: 8, WX: 9, WY: 10, STATUS: 11, WORK: 12 };
 
 // Kartet er 555 x 1378 enheter. Brukes til å regne avstand i fasiten.
 const MAP_W = 555;
@@ -26,10 +26,21 @@ const SHAPE_RATIO = { staende: 4 / 3, liggende: 3 / 4, kvadratisk: 1 }; // høyd
 const GROUPS = ['alene', 'venstre', 'midten', 'hoyre'];
 const STATUSES = ['Venter', 'Godkjent', 'Avvist'];
 
+// Kunstverkene ligger i fanen «Verk»: ID, navn, plassering på kartet, bildets bredde/høyde,
+// og selve bildet (JPEG som tekst) delt opp i biter fordi en celle tar maks 50 000 tegn.
+const WORKS_SHEET = 'Verk';
+const WORK_HEADERS = ['ID', 'Navn', 'Kart X', 'Kart Y', 'Bredde/høyde'];
+const WORK_FIXED = WORK_HEADERS.length;
+const IMG_CHUNK = 45000;
+const IMG_CHUNKS = 10;
+const IMG_MAX = IMG_CHUNK * IMG_CHUNKS; // ca. 330 kB JPEG
+const MAX_WORKS = 40;
+
 // ---------- Inngangspunkter ----------
 
 function doGet() {
-  return json_({ ok: true, open: readSettings_().open });
+  const st = readSettings_();
+        return json_({ ok: true, open: st.open, shape: st.fasit ? st.fasit.shape : null });
 }
 
 function doPost(e) {
@@ -42,9 +53,21 @@ function doPost(e) {
   try {
     switch (req.action) {
       case 'status':
-        return json_({ ok: true, open: readSettings_().open });
+        const st = readSettings_();
+        return json_({ ok: true, open: st.open, shape: st.fasit ? st.fasit.shape : null, works: readWorks_(false).map(publicWork_) });
+      case 'work':
+        return json_(getWork_(req));
       case 'submit':
         return json_(submit_(req));
+      case 'admin.addWork':
+        checkAuth_(req);
+        return json_(addWork_(req));
+      case 'admin.updateWork':
+        checkAuth_(req);
+        return json_(updateWork_(req));
+      case 'admin.deleteWork':
+        checkAuth_(req);
+        return json_(deleteWork_(req));
       case 'admin.state':
         checkAuth_(req);
         return json_(adminState_());
@@ -109,6 +132,10 @@ function submit_(req) {
 
   return withLock_(function () {
     if (!readSettings_().open) throw new Error('closed');
+    // Finnes det registrerte verk, må svaret peke på et av dem.
+    const works = readWorks_(false);
+    const workId = String(req.workId || '');
+    if (works.length && !works.some(function (w) { return w.id === workId; })) throw new Error('invalid');
     const sh = sheet_();
     const last = sh.getLastRow();
     if (last > 1) {
@@ -118,12 +145,13 @@ function submit_(req) {
       }
     }
     const row = last + 1;
-    sh.getRange(row, 1, 1, 4).setNumberFormat('@'); // tidspunkt, id, navn og mobil lagres som tekst
+    sh.getRange(row, 1, 1, 4).setNumberFormat('@');
+    sh.getRange(row, COL.WORK).setNumberFormat('@'); // tidspunkt, id, navn og mobil lagres som tekst
     const id = Utilities.getUuid().replace(/-/g, '').slice(0, 10);
     sh.getRange(row, 1, 1, NCOLS).setValues([[
       Utilities.formatDate(new Date(), TIME_ZONE, 'yyyy-MM-dd HH:mm:ss'),
       id, name, phone,
-      map.x, map.y, req.shape, req.group, mouse.x, mouse.y, 'Venter'
+      map.x, map.y, req.shape, req.group, mouse.x, mouse.y, 'Venter', works.length ? workId : ''
     ]]);
     return { ok: true };
   });
@@ -136,13 +164,13 @@ function adminState_() {
   const answers = readAnswers_().map(function (a) {
     return {
       id: a.id, time: a.time, name: a.name, phone: a.phone,
-      map: a.map, shape: a.shape, group: a.group, mouse: a.mouse,
+      map: a.map, shape: a.shape, group: a.group, mouse: a.mouse, workId: a.workId,
       status: a.status, match: evaluate_(a, s.fasit, s)
     };
   });
   return {
     ok: true, open: s.open, fasit: s.fasit, tolMap: s.tolMap, tolWork: s.tolWork,
-    winners: s.winners, answers: answers
+    winners: s.winners, answers: answers, works: readWorks_(false).map(publicWork_)
   };
 }
 
@@ -183,14 +211,24 @@ function approveMatching_() {
 
 function setFasit_(req) {
   const f = req.fasit;
-  const map = f && point_(f.map);
   const mouse = f && point_(f.mouse);
   const tolMap = Number(req.tolMap);
   const tolWork = Number(req.tolWork);
-  if (!map || !mouse || SHAPES.indexOf(f.shape) < 0 || GROUPS.indexOf(f.group) < 0) throw new Error('invalid');
+  if (!mouse) throw new Error('invalid');
   if (!(tolMap >= 1 && tolMap <= 60) || !(tolWork >= 1 && tolWork <= 60)) throw new Error('invalid');
+  let fasit;
+  if (f.workId) {
+    // Fasit knyttet til et registrert verk: kartposisjon og format hentes fra verket.
+    const work = readWorks_(false).filter(function (w) { return w.id === String(f.workId); })[0];
+    if (!work) throw new Error('invalid');
+    fasit = { workId: work.id, map: { x: work.x, y: work.y }, shape: 'staende', group: 'alene', ratio: 1 / work.aspect, mouse: mouse };
+  } else {
+    const map = point_(f.map);
+    if (!map || SHAPES.indexOf(f.shape) < 0 || GROUPS.indexOf(f.group) < 0) throw new Error('invalid');
+    fasit = { map: map, shape: f.shape, group: f.group, mouse: mouse };
+  }
   const s = readSettings_();
-  s.fasit = { map: map, shape: f.shape, group: f.group, mouse: mouse };
+  s.fasit = fasit;
   s.tolMap = tolMap;
   s.tolWork = tolWork;
   writeSettings_(s);
@@ -226,11 +264,17 @@ function evaluate_(a, fasit, s) {
   if (!fasit) return null;
   const dMap = Math.hypot((a.map.x - fasit.map.x) * MAP_W, (a.map.y - fasit.map.y) * MAP_H);
   const mapOk = dMap <= (s.tolMap / 100) * MAP_W;
-  const ratio = SHAPE_RATIO[fasit.shape] || 1;
+  const ratio = fasit.ratio || SHAPE_RATIO[fasit.shape] || 1;
   const dWork = Math.hypot(a.mouse.x - fasit.mouse.x, (a.mouse.y - fasit.mouse.y) * ratio); // 1 = verkets bredde
   const mouseOk = dWork <= s.tolWork / 100;
-  const shapeOk = a.shape === fasit.shape;
-  const groupOk = a.group === fasit.group;
+  // Gjestene velger verken format eller plassering. De ser rammen i fasitens format, så begge teller som riktige.
+  const shapeOk = true;
+  const groupOk = true;
+  if (fasit.workId) {
+    // Riktig verk og riktig sted på verket avgjør. Kartmarkøren brukes bare til å finne verket.
+    const workOk = a.workId === fasit.workId;
+    return { map: mapOk, work: workOk, shape: true, group: true, mouse: workOk && mouseOk, ok: workOk && mouseOk };
+  }
   return { map: mapOk, shape: shapeOk, group: groupOk, mouse: mouseOk, ok: mapOk && shapeOk && groupOk && mouseOk };
 }
 
@@ -298,8 +342,105 @@ function sheet_() {
     sh.getRange(1, 1, 1, NCOLS).setValues([HEADERS]);
     sh.setFrozenRows(1);
     sh.getRange(1, 1, 1, NCOLS).setFontWeight('bold');
+  } else if (String(sh.getRange(1, COL.WORK).getValue()) !== 'Verk') {
+    sh.getRange(1, COL.WORK).setValue('Verk'); // regneark laget før verkene ble innført
   }
   return sh;
+}
+
+// ---------- Verk ----------
+
+function worksSheet_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sh = ss.getSheetByName(WORKS_SHEET);
+  if (!sh) {
+    sh = ss.insertSheet(WORKS_SHEET);
+    sh.getRange(1, 1, 1, WORK_FIXED).setValues([WORK_HEADERS]);
+    sh.setFrozenRows(1);
+  }
+  return sh;
+}
+
+function readWorks_(withImage) {
+  const sh = worksSheet_();
+  const last = sh.getLastRow();
+  if (last < 2) return [];
+  const width = WORK_FIXED + (withImage ? IMG_CHUNKS : 0);
+  const rows = sh.getRange(2, 1, last - 1, width).getValues();
+  const out = [];
+  rows.forEach(function (r, i) {
+    if (!r[0]) return;
+    const w = { id: String(r[0]), name: String(r[1]), x: Number(r[2]), y: Number(r[3]), aspect: Number(r[4]), row: i + 2 };
+    if (withImage) w.image = r.slice(WORK_FIXED).join('');
+    out.push(w);
+  });
+  return out;
+}
+
+function publicWork_(w) { return { id: w.id, name: w.name, x: w.x, y: w.y, aspect: w.aspect }; }
+
+function getWork_(req) {
+  const id = String(req.id || '');
+  const w = readWorks_(true).filter(function (x) { return x.id === id; })[0];
+  if (!w || !w.image) throw new Error('not_found');
+  return { ok: true, id: w.id, image: w.image };
+}
+
+function cleanWorkName_(raw) {
+  const s = String(raw == null ? '' : raw).replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().replace(/^[=+\-@\s]+/, '');
+  return s.length >= 1 && s.length <= 60 ? s : null;
+}
+
+function validImage_(img) {
+  return typeof img === 'string' && img.length <= IMG_MAX && /^data:image\/jpeg;base64,[A-Za-z0-9+\/=]+$/.test(img);
+}
+
+function addWork_(req) {
+  const name = cleanWorkName_(req.name);
+  const pos = point_(req.pos);
+  const aspect = Math.round(Number(req.aspect) * 1000) / 1000;
+  if (!name || !pos || !(aspect >= 0.2 && aspect <= 5) || !validImage_(req.image)) throw new Error('invalid');
+  return withLock_(function () {
+    const works = readWorks_(false);
+    if (works.length >= MAX_WORKS) throw new Error('invalid');
+    const sh = worksSheet_();
+    const row = sh.getLastRow() + 1;
+    const id = Utilities.getUuid().replace(/-/g, '').slice(0, 8);
+    // ID, navn og bildebitene lagres som tekst. Ellers kan en bit som starter med + eller = tolkes som formel.
+    sh.getRange(row, 1, 1, 2).setNumberFormat('@');
+    sh.getRange(row, WORK_FIXED + 1, 1, IMG_CHUNKS).setNumberFormat('@');
+    const cells = [id, name, pos.x, pos.y, aspect];
+    for (let i = 0; i < IMG_CHUNKS; i++) cells.push(req.image.slice(i * IMG_CHUNK, (i + 1) * IMG_CHUNK));
+    sh.getRange(row, 1, 1, WORK_FIXED + IMG_CHUNKS).setValues([cells]);
+    return { ok: true, id: id };
+  });
+}
+
+function updateWork_(req) {
+  const name = cleanWorkName_(req.name);
+  const pos = point_(req.pos);
+  if (!name || !pos) throw new Error('invalid');
+  return withLock_(function () {
+    const w = readWorks_(false).filter(function (x) { return x.id === String(req.id || ''); })[0];
+    if (!w) throw new Error('not_found');
+    const sh = worksSheet_();
+    sh.getRange(w.row, 2).setNumberFormat('@').setValue(name);
+    sh.getRange(w.row, 3, 1, 2).setValues([[pos.x, pos.y]]);
+    const s = readSettings_();
+    if (s.fasit && s.fasit.workId === w.id) { s.fasit.map = pos; writeSettings_(s); }
+    return { ok: true };
+  });
+}
+
+function deleteWork_(req) {
+  return withLock_(function () {
+    const w = readWorks_(false).filter(function (x) { return x.id === String(req.id || ''); })[0];
+    if (!w) throw new Error('not_found');
+    worksSheet_().deleteRow(w.row);
+    const s = readSettings_();
+    if (s.fasit && s.fasit.workId === w.id) { s.fasit = null; writeSettings_(s); }
+    return { ok: true };
+  });
 }
 
 function readAnswers_() {
@@ -319,6 +460,7 @@ function readAnswers_() {
       shape: String(r[COL.SHAPE - 1]),
       group: String(r[COL.GROUP - 1]),
       mouse: { x: Number(r[COL.WX - 1]), y: Number(r[COL.WY - 1]) },
+      workId: String(r[COL.WORK - 1] || ''),
       status: STATUSES.indexOf(String(r[COL.STATUS - 1])) >= 0 ? String(r[COL.STATUS - 1]) : 'Venter'
     });
   });

@@ -9,11 +9,14 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <div class="page">
-    <header class="topbar">
-      <span class="wordmark">Klättermusen Oslo</span>
-    </header>
+  <header class="brandbar">
+    <div class="brandbar-inner">
+      <img src="assets/klattermusen.svg" alt="Klättermusen" width="1081" height="224">
+      <span class="brandbar-place">Oslo</span>
+    </div>
+  </header>
 
+  <div class="page">
     <main>
       <div class="banner" id="banner" hidden></div>
 
@@ -22,8 +25,23 @@
       </div>
 
       <section class="screen spaced" id="screen-start">
+        <img class="signal-logo" src="assets/the-signal.svg" alt="The Signal. Three. Two. One. Drop." width="497" height="277">
         <h1 tabindex="-1">Finn musen</h1>
-        <p>Et musehode er gjemt i et av kunstverkene. Finn det og vis oss hvor. Riktig svar gir ett lodd i trekningen av en håndmalt Meile-jakke.</p>
+        <p class="lead">Et lite musehode er gjemt i et av kunstverkene. Finn det, og vis oss hvor du fant det.</p>
+        <dl class="facts">
+          <div>
+            <dt>Premie</dt>
+            <dd>Håndmalt Meile-jakke. Riktig svar gir ett lodd i trekningen.</dd>
+          </div>
+          <div>
+            <dt>Trekning</dt>
+            <dd>I kveld kl. 21.00. Du må være til stede for å vinne.</dd>
+          </div>
+          <div>
+            <dt>Tid</dt>
+            <dd>Det tar under ett minutt.</dd>
+          </div>
+        </dl>
       </section>
 
       <section class="screen" id="screen-step1" hidden>
@@ -35,31 +53,19 @@
       </section>
 
       <section class="screen" id="screen-step2" hidden>
-        <h2 tabindex="-1">Hvor er musen på verket?</h2>
-        <p class="help" id="work-help">Velg formatet på verket, og trykk der musen er.</p>
-        <fieldset>
-          <legend>Format</legend>
-          <div class="chips" id="shape-chips">
-            <button type="button" class="chip" data-value="staende" aria-pressed="true">Stående</button>
-            <button type="button" class="chip" data-value="liggende" aria-pressed="false">Liggende</button>
-            <button type="button" class="chip" data-value="kvadratisk" aria-pressed="false">Kvadratisk</button>
-          </div>
-        </fieldset>
+        <h2 tabindex="-1">Hvor gjemmer musen seg?</h2>
+        <p class="help" id="work-help">Trykk der du fant musen på verket.</p>
         <div class="work-slot"><div id="work"></div></div>
-        <fieldset>
-          <legend>Hvis flere verk henger side om side, hvilket er det?</legend>
-          <div class="chips" id="group-chips">
-            <button type="button" class="chip" data-value="alene" aria-pressed="true">Ett verk</button>
-            <button type="button" class="chip" data-value="venstre" aria-pressed="false">Venstre</button>
-            <button type="button" class="chip" data-value="midten" aria-pressed="false">Midten</button>
-            <button type="button" class="chip" data-value="hoyre" aria-pressed="false">Høyre</button>
-          </div>
-          <p class="help">Venstre og høyre sett fra der du står foran verkene.</p>
-        </fieldset>
+        <button type="button" class="btn btn-secondary work-retry" id="work-retry" hidden>Prøv igjen</button>
+        <div class="switch" id="switch" hidden>
+          <button type="button" class="switch-toggle" id="switch-toggle" aria-expanded="false" aria-controls="switch-list">Er dette feil verk?</button>
+          <div class="switch-list" id="switch-list" hidden></div>
+        </div>
       </section>
 
       <section class="screen" id="screen-step3" hidden>
-        <h2 tabindex="-1">Navn og mobilnummer</h2>
+        <h2 tabindex="-1">Nesten ferdig</h2>
+        <p class="help">Skriv inn navn og mobilnummer, så vet vi hvem lodd og jakke tilhører. Trekningen er kl. 21.00, og vinneren må være til stede.</p>
         <form id="form" novalidate class="form">
           <div class="field">
             <label for="name">Navn</label>
@@ -78,13 +84,22 @@
       </section>
 
       <section class="screen spaced" id="screen-done" hidden>
-        <h2 tabindex="-1">Svaret er sendt inn</h2>
-        <p id="done-text"></p>
+        <svg class="check" viewBox="0 0 56 56" width="56" height="56" aria-hidden="true">
+          <circle cx="28" cy="28" r="26"></circle>
+          <path d="M17 29.5l7.5 7.5L39.5 20"></path>
+        </svg>
+        <h2 tabindex="-1" id="done-title">Takk for at du var med</h2>
+        <p id="done-text">Svaret ditt er registrert. Har du funnet musen, er du med i trekningen av Meile-jakken.</p>
+        <div class="callout">
+          <p class="callout-title">Trekning kl. 21.00</p>
+          <p>Du må være til stede for å vinne, så ikke gå for langt unna.</p>
+        </div>
+        <p>Se på resten av verkene, snakk med de rundt deg og nyt kvelden. Vi sees kl. 21.00.</p>
       </section>
 
       <section class="screen spaced" id="screen-closed" hidden>
         <h2 tabindex="-1">Innsendingen er stengt</h2>
-        <p>Takk til alle som var med.</p>
+        <p>Takk til alle som var med. Nyt resten av kvelden.</p>
       </section>
 
       <div class="nav" id="nav">

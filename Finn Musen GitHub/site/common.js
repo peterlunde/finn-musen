@@ -72,7 +72,29 @@
     });
   }
 
+  /** Verkbilder hentes ett om gangen og huskes, så de ikke lastes på nytt når man går fram og tilbake. */
+  var imageCache = {};
+  function workImage(id) {
+    if (!imageCache[id]) {
+      imageCache[id] = call('work', { id: id }).then(function (res) {
+        if (!res || !res.ok || !res.image) throw new Error('image');
+        return res.image;
+      });
+      imageCache[id].catch(function () { delete imageCache[id]; });
+    }
+    return imageCache[id];
+  }
+
+  /** Verkene sortert etter avstand fra et punkt på kartet (kartet er 555 x 1378 enheter). */
+  function nearestWorks(works, p, n) {
+    return works.map(function (w) {
+      return { w: w, d: Math.hypot((w.x - p.x) * 555, (w.y - p.y) * 1378) };
+    }).sort(function (a, b) { return a.d - b.d; }).slice(0, n).map(function (o) { return o.w; });
+  }
+
   window.Common = {
+    workImage: workImage,
+    nearestWorks: nearestWorks,
     h: h,
     normalizePhone: normalizePhone,
     formatPhone: formatPhone,

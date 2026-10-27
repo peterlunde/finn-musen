@@ -67,6 +67,20 @@ Gjør dette på en ekte telefon, helst på mobildata og ikke bare wifi:
 4. **Trekning:** bare godkjente svar er med. «Trekk ny vinner» tar aldri samme person to ganger.
 5. Lag en QR-kode av nettadressen (en vanlig QR-generator holder) og heng den opp i lokalet.
 
+## Kunstverkene (valgfritt)
+
+Under fanen **Verk** i admin legger du inn et bilde av hvert kunstverk:
+
+1. Trykk **Legg til verk**, skriv et navn, velg bildet og trykk på kartet der verket henger.
+2. Bildene skaleres ned automatisk i nettleseren. Regnearket får en ny fane «Verk» der de lagres.
+3. Når gjesten har trykket på kartet, ser hen verket som henger nærmest og trykker der musen er. Er det feil verk, kan hen bytte blant de tre nærmeste.
+4. Under **Fasit** velger du verket og trykker der musen sitter. Svaret er riktig når gjesten har valgt riktig verk og trykket nær nok musen.
+5. Har du ikke lagt inn noen verk, får gjestene en tom ramme i stedet, som før.
+
+Husk at gjestene ser bildet du laster opp. Er oppløsningen høy nok til å se musen når de zoomer, blir det lett å finne. Test med et par bilder på telefonen først.
+
+Etter at Code.gs er byttet må du lage en ny versjon av distribusjonen (se øverst), ellers får admin feilmelding når du legger til verk.
+
 ## Personvern
 
 Navn og mobilnummer ligger i regnearket ditt, og bare du og de du deler det med kan se det. Teksten på siste steg sier at opplysningene brukes til trekningen og ikke til markedsføring. Pass på at det stemmer, og slett regnearket (eller radene) når trekningen er ferdig.
@@ -74,7 +88,8 @@ Navn og mobilnummer ligger i regnearket ditt, og bare du og de du deler det med 
 ## Endre utseende og tekst
 
 - **Tekster:** står i `site/index.html` (deltakersiden).
-- **Farger og avstander:** øverst i `site/styles.css`. Svart er knapper og valgt tilstand, oransje (`--accent`) er markørene på kart og verk.
+- **Farger og avstander:** øverst i `site/styles.css`. Svart er knapper og valgt tilstand, blått (`--accent`) er markørene på kart og verk.
+- **Logoer og fonter:** ligger i `site/assets/`.
 - **Kartet:** `site/map.svg`. Behold navnet, og behold `viewBox` hvis du bytter det.
 
 ## Hva som er hva

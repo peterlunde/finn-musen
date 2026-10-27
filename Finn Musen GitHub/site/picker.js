@@ -215,7 +215,29 @@
       });
     }
   }
-  WorkPicker.prototype.setShape = function (shape) { this.root.dataset.shape = shape; };
+  WorkPicker.prototype.setShape = function (shape) {
+    this.root.dataset.shape = shape;
+    this.clearImage();
+  };
+  /* Viser selve verket i rammen. aspect = bredde / høyde. src kan være null mens bildet lastes. */
+  WorkPicker.prototype.setImage = function (src, aspect) {
+    this.root.dataset.shape = 'image';
+    this.root.style.setProperty('--a', String(aspect || 1));
+    if (!this.img) {
+      this.img = h('img', { class: 'work-img', alt: '', draggable: 'false' });
+      this.root.insertBefore(this.img, this.root.firstChild);
+    }
+    if (src) this.img.src = src; else this.img.removeAttribute('src');
+    this.img.hidden = !src;
+  };
+  WorkPicker.prototype.clearImage = function () {
+    if (this.img) { this.img.remove(); this.img = null; }
+    this.root.style.removeProperty('--a');
+  };
+  WorkPicker.prototype.setHint = function (text) {
+    this.hint.textContent = text || '';
+    this.hint.hidden = !text || !!this.value;
+  };
   WorkPicker.prototype.setValue = function (p, silent) {
     this.value = p || null;
     placePin(this.root, this.pins, 'main', this.value, this.pinKind || 'answer');

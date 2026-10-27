@@ -7,8 +7,8 @@
   function $(id) { return document.getElementById(id); }
 
   var SCREENS = ['start', 'step1', 'step2', 'step3', 'done', 'closed'];
-  var HELP_MAP_EMPTY = 'Trykk der verket henger, ikke der du står.';
-  var HELP_MAP_SET = 'Trykk et annet sted for å flytte markøren.';
+  var HELP_MAP_EMPTY = 'Zoom inn og trykk der verket henger, ikke der du står.';
+  var HELP_MAP_SET = 'Bra. Trykk et annet sted hvis du vil flytte markøren.';
 
   var state = {
     screen: 'start',
@@ -16,6 +16,10 @@
     shape: 'staende',
     group: 'alene',
     mouse: null,
+    works: [],          // registrerte kunstverk (uten bilder)
+    candidates: [],     // verkene nærmest kartmarkøren
+    candidatesFor: '',  // hvilken markør kandidatene gjelder for
+    work: null,         // verket som vises i steg 2
     sending: false
   };
   var mapPicker = null;
@@ -42,11 +46,11 @@
     }
 
     if (name === 'step1') ensureMap();
-    if (name === 'step2') ensureWork();
+    if (name === 'step2') enterStep2();
 
     $('nav').hidden = name === 'done' || name === 'closed';
     $('back').hidden = name === 'start' || name === 'step1';
-    $('next').textContent = name === 'start' ? 'Start' : name === 'step3' ? 'Send inn' : 'Neste';
+    $('next').textContent = name === 'start' ? 'Sett i gang' : name === 'step3' ? 'Send inn' : 'Neste';
     updateNext();
 
     window.scrollTo(0, 0);
@@ -57,10 +61,19 @@
   function updateNext() {
     var ok = true;
     if (state.screen === 'step1') ok = !!state.map;
-    if (state.screen === 'step2') ok = !!state.mouse;
+    if (state.screen === 'step2') ok = !!state.mouse && (!state.works.length || !!state.work);
     if (state.screen === 'step3') ok = !state.sending;
+    var was = $('next').disabled;
     $('next').disabled = !ok;
+    if (was && ok) { // liten bekreftelse når man kan gå videre
+      var n = $('next');
+      n.classList.remove('ready');
+      void n.offsetWidth;
+      n.classList.add('ready');
+    }
   }
+
+  function buzz() { try { if (navigator.vibrate) navigator.vibrate(8); } catch (e) { /* ignorer */ } }
 
   /* ---------- Steg 1: kart ---------- */
   function ensureMap() {
@@ -68,7 +81,12 @@
     mapPicker = new P.MapPicker($('map'), {
       onChange: function (p) {
         state.map = p;
+        if (p) buzz();
         $('map-help').textContent = p ? HELP_MAP_SET : HELP_MAP_EMPTY;
+        if (p && state.works.length) { // begynn å hente verket mens gjesten fortsatt ser på kartet
+          var near = C.nearestWorks(state.works, p, 1)[0];
+          if (near) C.workImage(near.id).catch(function () { /* hentes på nytt i steg 2 */ });
+        }
         updateNext();
       }
     });
@@ -81,30 +99,72 @@
     if (workPicker) return;
     workPicker = new P.WorkPicker($('work'), {
       hint: 'Trykk der musen er',
-      onChange: function (p) { state.mouse = p; updateNext(); }
+      onChange: function (p) { state.mouse = p; if (p) buzz(); updateNext(); }
     });
     workPicker.setShape(state.shape);
   }
 
-  function bindChips(containerId, key, onChange) {
-    var box = $(containerId);
-    box.addEventListener('click', function (e) {
-      var btn = e.target.closest('.chip');
-      if (!btn) return;
-      Array.prototype.forEach.call(box.querySelectorAll('.chip'), function (c) {
-        c.setAttribute('aria-pressed', c === btn ? 'true' : 'false');
+  // Har vi registrert verk, vises verket som henger nærmest der gjesten trykket på kartet.
+  function enterStep2() {
+    ensureWork();
+    if (!state.works.length) { $('switch').hidden = true; return; }
+    var key = state.map ? state.map.x + ',' + state.map.y : '';
+    if (key !== state.candidatesFor || !state.work) {
+      state.candidatesFor = key;
+      state.candidates = C.nearestWorks(state.works, state.map || { x: 0.5, y: 0.5 }, 3);
+      $('switch-list').textContent = '';
+      $('switch-list').hidden = true;
+      $('switch-toggle').setAttribute('aria-expanded', 'false');
+      showWork(state.candidates[0]);
+    }
+    $('switch').hidden = state.candidates.length < 2;
+  }
+
+  function showWork(w) {
+    var changed = !state.work || state.work.id !== w.id;
+    state.work = w;
+    if (changed) { workPicker.setValue(null); }
+    workPicker.setImage(null, w.aspect);
+    workPicker.setHint('Henter verket…');
+    workPicker.hint.classList.remove('on-image');
+    $('work-retry').hidden = true;
+    updateNext();
+    C.workImage(w.id).then(function (src) {
+      if (!state.work || state.work.id !== w.id) return; // gjesten har byttet verk i mellomtiden
+      workPicker.setImage(src, w.aspect);
+      workPicker.setHint('Trykk der musen er');
+      workPicker.hint.classList.add('on-image');
+    }).catch(function () {
+      if (!state.work || state.work.id !== w.id) return;
+      workPicker.setHint('Fikk ikke hentet verket.');
+      $('work-retry').hidden = false;
+    });
+  }
+
+  $('work-retry').addEventListener('click', function () { if (state.work) showWork(state.work); });
+
+  $('switch-toggle').addEventListener('click', function () {
+    var list = $('switch-list');
+    var open = list.hidden;
+    list.hidden = !open;
+    $('switch-toggle').setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (!open || list.children.length) return;
+    state.candidates.forEach(function (w) {
+      var thumb = C.h('span', { class: 'switch-thumb' }, 'Henter…');
+      var btn = C.h('button', { type: 'button', class: 'switch-item', 'aria-pressed': state.work && state.work.id === w.id ? 'true' : 'false', 'data-id': w.id },
+        thumb, C.h('span', { class: 'switch-name' }, w.name));
+      btn.addEventListener('click', function () {
+        Array.prototype.forEach.call(list.children, function (c) { c.setAttribute('aria-pressed', c === btn ? 'true' : 'false'); });
+        if (!state.work || state.work.id !== w.id) showWork(w);
       });
-      var changed = state[key] !== btn.dataset.value;
-      state[key] = btn.dataset.value;
-      if (changed && onChange) onChange();
+      list.appendChild(btn);
+      C.workImage(w.id).then(function (src) {
+        thumb.textContent = '';
+        thumb.appendChild(C.h('img', { src: src, alt: '' }));
+      }).catch(function () { thumb.textContent = ''; });
     });
-  }
-
-  bindChips('shape-chips', 'shape', function () {
-    workPicker.setShape(state.shape);
-    workPicker.setValue(null); // markøren hører til en bestemt ramme, så den nullstilles
   });
-  bindChips('group-chips', 'group');
+
 
   /* ---------- Steg 3: send inn ---------- */
   function setError(id, msg) {
@@ -143,11 +203,12 @@
       shape: state.shape,
       group: state.group,
       mouse: state.mouse,
+      workId: state.work ? state.work.id : '',
       website: $('hp').value
     }).then(function (res) {
       state.sending = false;
       if (res && res.ok) {
-        $('done-text').textContent = 'Takk, ' + v.name.split(' ')[0] + '. Er svaret riktig, er du med i trekningen.';
+        $('done-title').textContent = 'Takk for at du var med, ' + v.name.split(' ')[0];
         show('done');
         return;
       }
@@ -196,7 +257,13 @@
     b.hidden = false;
   } else {
     C.call('status').then(function (res) {
-      if (res && res.ok && res.open === false) show('closed');
+      if (res && res.ok && res.open === false) { show('closed'); return; }
+      if (res && res.ok && Array.isArray(res.works)) state.works = res.works;
+      // Uten registrerte verk får rammen samme format som fasiten, så gjestene slipper å velge det selv.
+      if (res && res.ok && !state.works.length && ['staende', 'liggende', 'kvadratisk'].indexOf(res.shape) >= 0) {
+        state.shape = res.shape;
+        if (workPicker) workPicker.setShape(state.shape);
+      }
     }).catch(function () { /* hvis statussjekken feiler, lar vi deltakeren prøve likevel */ });
   }
 })();
