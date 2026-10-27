@@ -86,10 +86,12 @@
   }
 
   /** Verkene sortert etter avstand fra et punkt på kartet (kartet er 555 x 1378 enheter). */
-  function nearestWorks(works, p, n) {
+  function nearestWorks(works, p, n, radiusPercent) {
+    var max = radiusPercent > 0 ? (radiusPercent / 100) * 555 : Infinity; // radius er prosent av kartbredden
     return works.map(function (w) {
       return { w: w, d: Math.hypot((w.x - p.x) * 555, (w.y - p.y) * 1378) };
-    }).sort(function (a, b) { return a.d - b.d; }).slice(0, n).map(function (o) { return o.w; });
+    }).filter(function (o) { return o.d <= max; })
+      .sort(function (a, b) { return a.d - b.d; }).slice(0, n).map(function (o) { return o.w; });
   }
 
   function forgetImage(id) { delete imageCache[id]; }

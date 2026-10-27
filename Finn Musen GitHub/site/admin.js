@@ -226,7 +226,7 @@
       var wk = f.workId ? workById(a.workId) : null;
       checks = h('ul', { class: 'checks' },
         f.workId
-          ? checkItem('Verk: ' + (wk ? wk.name : 'ukjent'), m.work)
+          ? checkItem('Verk: ' + (wk ? wk.name : 'ukjent') + (!m.work && a.workId === f.workId && !m.map ? ' (kartmarkøren ligger for langt unna)' : ''), m.work)
           : checkItem('Verket på kartet', m.map),
         checkItem('Musen på verket', m.mouse));
     }
@@ -324,6 +324,38 @@
         : 'Ingen verk er lagt inn. Uten verk får gjestene en tom ramme å trykke i. Legg inn et bilde av hvert verk og marker hvor det henger.'));
     wrap.appendChild(h('div', { class: 'actions' },
       h('button', { type: 'button', class: 'btn btn-primary', onclick: function () { S.worksView = { mode: 'add' }; renderTab(); } }, 'Legg til verk')));
+    if (d.works.length) {
+      var radius = numberField('Hvor nær verket gjesten må trykke (% av kartbredden)', d.workRadius || 10);
+      radius.input.min = '2'; radius.input.max = '40';
+      var radiusMsg = h('p', { class: 'count-line' });
+      var radiusSave = h('button', { type: 'button', class: 'btn btn-secondary small' }, 'Lagre');
+      var ovBox = h('div', { class: 'compact' });
+      var ovWrap = h('div', { class: 'picker-wrap' }, ovBox);
+      var ov;
+      var drawZones = function () {
+        if (!ov) return;
+        d.works.forEach(function (w) { ov.setZone({ x: w.x, y: w.y }, Number(radius.input.value), w.id); });
+      };
+      radius.input.addEventListener('input', drawZones);
+      radiusSave.addEventListener('click', function () {
+        radiusSave.disabled = true; radiusMsg.textContent = '';
+        api('admin.setWorkRadius', { radius: Number(radius.input.value) }).then(function () { return loadState(); }).then(function () {
+          radiusMsg.textContent = 'Lagret.';
+        }).catch(function (ex) {
+          radiusMsg.textContent = ex.message === 'invalid' ? 'Tallet må være mellom 2 og 40.' : errText(ex.message);
+        }).then(function () { radiusSave.disabled = false; });
+      });
+      wrap.appendChild(h('div', { class: 'tol' }, radius.el, h('div', { class: 'actions' }, radiusSave)));
+      wrap.appendChild(h('p', { class: 'help' }, 'Gjesten ser bare et verk hvis hen trykker innenfor sirkelen rundt det. Trykker hen et annet sted, får hen beskjed om å prøve igjen.'));
+      wrap.appendChild(radiusMsg);
+      wrap.appendChild(ovWrap);
+      setTimeout(function () {
+        ov = new P.MapPicker(ovBox, { readOnly: true });
+        ovWrap.appendChild(P.zoomTools(ov));
+        d.works.forEach(function (w) { ov.setPin('w' + w.id, { x: w.x, y: w.y }, 'fasit'); });
+        drawZones();
+      }, 0);
+    }
     var list = h('div', { class: 'list' });
     d.works.forEach(function (w) {
       var thumb = h('span', { class: 'switch-thumb row-thumb' });
@@ -393,7 +425,7 @@
     var mapBox = h('div', { class: 'compact' });
     var mapWrap = h('div', { class: 'picker-wrap' }, mapBox);
     wrap.appendChild(h('div', { class: 'field' },
-      h('p', { class: 'help' }, 'Trykk på kartet der verket henger. De andre verkene vises som ringer.'), mapWrap));
+      h('p', { class: 'help' }, 'Trykk på kartet der verket henger. Sirkelen viser hvor nær gjesten må trykke for å få opp verket. De andre verkene vises som ringer.'), mapWrap));
     wrap.appendChild(err);
 
     var buttons = [save, h('button', { type: 'button', class: 'btn btn-secondary', onclick: function () { S.worksView = null; renderTab(); } }, 'Avbryt')];
@@ -419,10 +451,16 @@
     });
 
     setTimeout(function () {
-      var mp = new P.MapPicker(mapBox, { onChange: function (p) { F.pos = p; refreshSave(); } });
+      var rad = d.workRadius || 10;
+      var mp = new P.MapPicker(mapBox, { onChange: function (p) { F.pos = p; refreshSave(); mp.setZone(p, rad, 'self'); } });
       mapWrap.appendChild(P.zoomTools(mp));
-      d.works.forEach(function (w) { if (!existing || w.id !== existing.id) mp.setPin('w' + w.id, { x: w.x, y: w.y }, 'fasit'); });
+      d.works.forEach(function (w) {
+        if (existing && w.id === existing.id) return;
+        mp.setPin('w' + w.id, { x: w.x, y: w.y }, 'fasit');
+        mp.setZone({ x: w.x, y: w.y }, rad, w.id);
+      });
       mp.setValue(F.pos, true);
+      mp.setZone(F.pos, rad, 'self');
     }, 0);
     refreshSave();
     return wrap;

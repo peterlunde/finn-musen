@@ -122,16 +122,19 @@
     placePin(this.stage, this.pins, name, p, kind);
   };
   /* Viser slingringsmonnet som en sirkel rundt et punkt. Radius er prosent av kartbredden. */
-  MapPicker.prototype.setZone = function (p, percent) {
-    if (this.zone) { this.zone.remove(); this.zone = null; }
+  MapPicker.prototype.setZone = function (p, percent, name) {
+    name = name || 'main';
+    this.zones = this.zones || {};
+    if (this.zones[name]) { this.zones[name].remove(); delete this.zones[name]; }
     if (!p || !(percent > 0)) return;
     var d = (percent / 100) * MAP.w * 2;
-    this.zone = h('span', { class: 'zone' });
-    this.zone.style.left = (p.x * MAP.w) + 'px';
-    this.zone.style.top = (p.y * MAP.h) + 'px';
-    this.zone.style.width = d + 'px';
-    this.zone.style.height = d + 'px';
-    this.stage.insertBefore(this.zone, this.stage.children[1] || null);
+    var z = h('span', { class: 'zone' });
+    z.style.left = (p.x * MAP.w) + 'px';
+    z.style.top = (p.y * MAP.h) + 'px';
+    z.style.width = d + 'px';
+    z.style.height = d + 'px';
+    this.stage.insertBefore(z, this.stage.children[1] || null);
+    this.zones[name] = z;
   };
 
   MapPicker.prototype._tap = function (clientX, clientY) {

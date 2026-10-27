@@ -53,13 +53,17 @@
       </section>
 
       <section class="screen" id="screen-step2" hidden>
-        <h2 tabindex="-1">Hvor gjemmer musen seg?</h2>
+        <h2 tabindex="-1" id="step2-title">Hvor gjemmer musen seg?</h2>
         <p class="help" id="work-help">Trykk der du fant musen på verket.</p>
+        <div class="choose" id="choose" hidden><div class="choose-grid" id="choose-list"></div></div>
+        <div class="callout" id="no-work" hidden>
+          <p class="callout-title">Fant ikke noe verk der du trykket</p>
+          <p>Gå tilbake og trykk på kartet der verket henger. Zoom gjerne inn for å treffe bedre.</p>
+        </div>
         <div class="work-slot"><div id="work"></div></div>
         <button type="button" class="btn btn-secondary work-retry" id="work-retry" hidden>Prøv igjen</button>
         <div class="switch" id="switch" hidden>
-          <button type="button" class="switch-toggle" id="switch-toggle" aria-expanded="false" aria-controls="switch-list">Er dette feil verk?</button>
-          <div class="switch-list" id="switch-list" hidden></div>
+          <button type="button" class="switch-toggle" id="switch-toggle">Er dette feil verk?</button>
         </div>
       </section>
 

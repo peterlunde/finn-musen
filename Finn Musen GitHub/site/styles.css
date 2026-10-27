@@ -415,3 +415,9 @@ dialog::backdrop { background: rgba(17, 17, 17, 0.5); }
 .row-thumb { width: 56px; height: 56px; flex: none; }
 .work-preview { margin-top: var(--s2); }
 .work-preview img { display: block; max-width: 100%; max-height: 240px; border: 1px solid var(--line); border-radius: var(--radius); }
+
+.choose-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s2); }
+.choose-item { padding: var(--s2); border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg); cursor: pointer; display: flex; flex-direction: column; gap: var(--s2); align-items: center; min-width: 0; }
+.choose-thumb { width: 100%; height: 150px; display: flex; align-items: center; justify-content: center; background: var(--surface); border-radius: 4px; overflow: hidden; font-size: 14px; color: var(--muted); }
+.choose-thumb img { max-width: 100%; max-height: 100%; display: block; }
+@media (prefers-reduced-motion: no-preference) { .choose-item { transition: transform .12s ease, border-color .2s ease; } .choose-item:active { transform: scale(.97); } }

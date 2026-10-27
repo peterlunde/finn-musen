@@ -17,6 +17,7 @@
     group: 'alene',
     mouse: null,
     works: [],          // registrerte kunstverk (uten bilder)
+    radius: 10,         // hvor nær et verk man må trykke på kartet, i % av kartbredden
     candidates: [],     // verkene nærmest kartmarkøren
     candidatesFor: '',  // hvilken markør kandidatene gjelder for
     work: null,         // verket som vises i steg 2
@@ -84,8 +85,9 @@
         if (p) buzz();
         $('map-help').textContent = p ? HELP_MAP_SET : HELP_MAP_EMPTY;
         if (p && state.works.length) { // begynn å hente verket mens gjesten fortsatt ser på kartet
-          var near = C.nearestWorks(state.works, p, 1)[0];
-          if (near) C.workImage(near.id).catch(function () { /* hentes på nytt i steg 2 */ });
+          C.nearestWorks(state.works, p, 6, state.radius).forEach(function (w) {
+            C.workImage(w.id).catch(function () { /* hentes på nytt i steg 2 */ });
+          });
         }
         updateNext();
       }
@@ -104,20 +106,57 @@
     workPicker.setShape(state.shape);
   }
 
-  // Har vi registrert verk, vises verket som henger nærmest der gjesten trykket på kartet.
+  // Har vi registrert verk, får gjesten først se alle verkene innenfor radiusen rundt markøren
+  // og velger selv hvilket det er. Er det bare ett, vises det med en gang.
   function enterStep2() {
     ensureWork();
-    if (!state.works.length) { $('switch').hidden = true; return; }
+    if (!state.works.length) { setStep2Mode('plain'); return; }
     var key = state.map ? state.map.x + ',' + state.map.y : '';
-    if (key !== state.candidatesFor || !state.work) {
+    if (key !== state.candidatesFor) {
       state.candidatesFor = key;
-      state.candidates = C.nearestWorks(state.works, state.map || { x: 0.5, y: 0.5 }, 3);
-      $('switch-list').textContent = '';
-      $('switch-list').hidden = true;
-      $('switch-toggle').setAttribute('aria-expanded', 'false');
-      showWork(state.candidates[0]);
+      state.candidates = C.nearestWorks(state.works, state.map || { x: 0.5, y: 0.5 }, 6, state.radius);
+      state.work = null;
+      workPicker.setValue(null);
+      buildChooser();
     }
-    $('switch').hidden = state.candidates.length < 2;
+    if (!state.candidates.length) setStep2Mode('none');
+    else if (state.work) setStep2Mode('work');
+    else if (state.candidates.length === 1) { showWork(state.candidates[0]); setStep2Mode('work'); }
+    else setStep2Mode('choose');
+    updateNext();
+  }
+
+  // mode: plain (uten registrerte verk), none (ingen verk i nærheten), choose (velg verk), work (marker musen)
+  function setStep2Mode(mode) {
+    var choose = mode === 'choose', none = mode === 'none';
+    $('step2-title').textContent = choose ? 'Hvilket verk er det?' : 'Hvor gjemmer musen seg?';
+    $('work-help').textContent = choose ? 'Flere verk henger i nærheten av der du trykket. Trykk på det du mener.' : 'Trykk der du fant musen på verket.';
+    $('work-help').hidden = none;
+    $('choose').hidden = !choose;
+    $('no-work').hidden = !none;
+    $('work').parentNode.hidden = choose || none;
+    $('switch').hidden = !(mode === 'work' && state.candidates.length > 1);
+    if (mode !== 'work') $('work-retry').hidden = true;
+  }
+
+  function buildChooser() {
+    var list = $('choose-list');
+    list.textContent = '';
+    state.candidates.forEach(function (w) {
+      var thumb = C.h('span', { class: 'choose-thumb' }, 'Henter…');
+      var btn = C.h('button', { type: 'button', class: 'choose-item', 'data-id': w.id }, thumb, C.h('span', { class: 'switch-name' }, w.name));
+      btn.addEventListener('click', function () {
+        showWork(w);
+        setStep2Mode('work');
+        updateNext();
+        window.scrollTo(0, 0);
+      });
+      list.appendChild(btn);
+      C.workImage(w.id).then(function (src) {
+        thumb.textContent = '';
+        thumb.appendChild(C.h('img', { src: src, alt: '' }));
+      }).catch(function () { thumb.textContent = 'Fikk ikke hentet'; });
+    });
   }
 
   function showWork(w) {
@@ -144,27 +183,12 @@
   $('work-retry').addEventListener('click', function () { if (state.work) showWork(state.work); });
 
   $('switch-toggle').addEventListener('click', function () {
-    var list = $('switch-list');
-    var open = list.hidden;
-    list.hidden = !open;
-    $('switch-toggle').setAttribute('aria-expanded', open ? 'true' : 'false');
-    if (!open || list.children.length) return;
-    state.candidates.forEach(function (w) {
-      var thumb = C.h('span', { class: 'switch-thumb' }, 'Henter…');
-      var btn = C.h('button', { type: 'button', class: 'switch-item', 'aria-pressed': state.work && state.work.id === w.id ? 'true' : 'false', 'data-id': w.id },
-        thumb, C.h('span', { class: 'switch-name' }, w.name));
-      btn.addEventListener('click', function () {
-        Array.prototype.forEach.call(list.children, function (c) { c.setAttribute('aria-pressed', c === btn ? 'true' : 'false'); });
-        if (!state.work || state.work.id !== w.id) showWork(w);
-      });
-      list.appendChild(btn);
-      C.workImage(w.id).then(function (src) {
-        thumb.textContent = '';
-        thumb.appendChild(C.h('img', { src: src, alt: '' }));
-      }).catch(function () { thumb.textContent = ''; });
-    });
+    state.work = null;
+    workPicker.setValue(null);
+    setStep2Mode('choose');
+    updateNext();
+    window.scrollTo(0, 0);
   });
-
 
   /* ---------- Steg 3: send inn ---------- */
   function setError(id, msg) {
@@ -259,6 +283,7 @@
     C.call('status').then(function (res) {
       if (res && res.ok && res.open === false) { show('closed'); return; }
       if (res && res.ok && Array.isArray(res.works)) state.works = res.works;
+      if (res && res.ok && res.workRadius > 0) state.radius = res.workRadius;
       // Uten registrerte verk får rammen samme format som fasiten, så gjestene slipper å velge det selv.
       if (res && res.ok && !state.works.length && ['staende', 'liggende', 'kvadratisk'].indexOf(res.shape) >= 0) {
         state.shape = res.shape;

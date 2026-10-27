@@ -57,11 +57,14 @@ function doPost(e) {
     switch (req.action) {
       case 'status':
         const st = readSettings_();
-        return json_({ ok: true, open: st.open, shape: st.fasit ? st.fasit.shape : null, works: readWorks_(false).map(publicWork_) });
+        return json_({ ok: true, open: st.open, shape: st.fasit ? st.fasit.shape : null, works: readWorks_(false).map(publicWork_), workRadius: st.workRadius });
       case 'work':
         return json_(getWork_(req));
       case 'submit':
         return json_(submit_(req));
+      case 'admin.setWorkRadius':
+        checkAuth_(req);
+        return json_(setWorkRadius_(req));
       case 'admin.addWork':
         checkAuth_(req);
         return json_(addWork_(req));
@@ -138,7 +141,13 @@ function submit_(req) {
     // Finnes det registrerte verk, må svaret peke på et av dem.
     const works = readWorks_(false);
     const workId = String(req.workId || '');
-    if (works.length && !works.some(function (w) { return w.id === workId; })) throw new Error('invalid');
+    if (works.length) {
+      // Verket må finnes, og kartmarkøren må ligge innenfor radiusen rundt det.
+      const chosen = works.filter(function (w) { return w.id === workId; })[0];
+      if (!chosen) throw new Error('invalid');
+      const radius = readSettings_().workRadius;
+      if (Math.hypot((chosen.x - map.x) * MAP_W, (chosen.y - map.y) * MAP_H) > (radius / 100) * MAP_W) throw new Error('invalid');
+    }
     const sh = sheet_();
     const last = sh.getLastRow();
     if (last > 1) {
@@ -172,7 +181,7 @@ function adminState_() {
     };
   });
   return {
-    ok: true, open: s.open, fasit: s.fasit, tolMap: s.tolMap, tolWork: s.tolWork,
+    ok: true, open: s.open, fasit: s.fasit, tolMap: s.tolMap, tolWork: s.tolWork, workRadius: s.workRadius,
     winners: s.winners, answers: answers, works: readWorks_(false).map(publicWork_)
   };
 }
@@ -274,9 +283,11 @@ function evaluate_(a, fasit, s) {
   const shapeOk = true;
   const groupOk = true;
   if (fasit.workId) {
-    // Riktig verk og riktig sted på verket avgjør. Kartmarkøren brukes bare til å finne verket.
-    const workOk = a.workId === fasit.workId;
-    return { map: mapOk, work: workOk, shape: true, group: true, mouse: workOk && mouseOk, ok: workOk && mouseOk };
+    // Riktig verk (valgt blant verkene nær kartmarkøren) og riktig sted på verket avgjør.
+    // Kartmarkøren må ligge innenfor verkets radius, ellers teller ikke verkvalget.
+    const near = dMap <= (s.workRadius / 100) * MAP_W;
+    const workOk = a.workId === fasit.workId && near;
+    return { map: near, work: workOk, shape: true, group: true, mouse: workOk && mouseOk, ok: workOk && mouseOk };
   }
   return { map: mapOk, shape: shapeOk, group: groupOk, mouse: mouseOk, ok: mapOk && shapeOk && groupOk && mouseOk };
 }
@@ -386,6 +397,16 @@ function readWorks_(withImage) {
   return out;
 }
 
+// Hvor nær et verk gjesten må trykke på kartet, i prosent av kartbredden. Utenfor dette vises ikke verket.
+function setWorkRadius_(req) {
+  const r = Number(req.radius);
+  if (!(r >= 2 && r <= 40)) throw new Error('invalid');
+  const s = readSettings_();
+  s.workRadius = r;
+  writeSettings_(s);
+  return { ok: true };
+}
+
 function publicWork_(w) { return { id: w.id, name: w.name, x: w.x, y: w.y, aspect: w.aspect }; }
 
 function getWork_(req) {
@@ -488,7 +509,7 @@ function readAnswers_() {
 }
 
 function readSettings_() {
-  const def = { open: true, fasit: null, tolMap: 15, tolWork: 15, winners: [] };
+  const def = { open: true, fasit: null, tolMap: 15, tolWork: 15, workRadius: 10, winners: [] };
   const raw = PropertiesService.getScriptProperties().getProperty('settings');
   if (!raw) return def;
   return Object.assign(def, JSON.parse(raw));
