@@ -9,7 +9,7 @@ Svarene lagres i et Google Regneark som du eier. Du kan åpne det når som helst
 1. Gå til https://sheets.new og gi regnearket et navn, for eksempel «Finn musen: svar».
 2. Velg **Utvidelser → Apps Script** (engelsk: Extensions → Apps Script).
 3. Slett all kode som står der, og lim inn hele innholdet i `apps-script/Code.gs`.
-4. Øverst i koden står `const ADMIN_PASSWORD = 'ENDRE-MEG';`. Bytt ut teksten med et passord du velger. Admin fungerer ikke før dette er gjort.
+4. Velg et passord og legg det inn som skriptegenskap: tannhjulet **Prosjektinnstillinger** i menyen til venstre → **Skriptegenskaper** → **Legg til skriptegenskap**. Navn: `ADMIN_PASSWORD`, verdi: passordet ditt. Admin fungerer ikke før dette er gjort. Fordelen er at du aldri trenger å sette inn passordet på nytt når du bytter koden.
 5. Trykk **Lagre** (diskettikonet eller Cmd+S).
 6. I nedtrekksmenyen over koden velger du funksjonen **oppsett** og trykker **Kjør**. Google ber om tillatelse:
    - Velg kontoen din.

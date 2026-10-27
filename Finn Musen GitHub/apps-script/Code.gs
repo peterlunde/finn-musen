@@ -7,9 +7,12 @@
  * Oppsett: se OPPSETT.md.
  */
 
-// ====== ENDRE DETTE ======
+// ====== PASSORD ======
+// Sett passordet i Apps Script: Prosjektinnstillinger (tannhjulet) → Skriptegenskaper → Legg til
+// skriptegenskap, med navnet ADMIN_PASSWORD og passordet som verdi. Da slipper du å sette det inn
+// på nytt hver gang koden byttes. Verdien under brukes bare hvis egenskapen mangler.
 const ADMIN_PASSWORD = 'ENDRE-MEG';
-// =========================
+// =====================
 
 const TIME_ZONE = 'Europe/Oslo';
 const SHEET_NAME = 'Svar';
@@ -280,9 +283,15 @@ function evaluate_(a, fasit, s) {
 
 // ---------- Hjelpere ----------
 
+function adminPassword_() {
+  const fromProps = PropertiesService.getScriptProperties().getProperty('ADMIN_PASSWORD');
+  return fromProps ? String(fromProps) : ADMIN_PASSWORD;
+}
+
 function checkAuth_(req) {
-  if (!ADMIN_PASSWORD || ADMIN_PASSWORD === 'ENDRE-MEG') throw new Error('password_not_set');
-  if (String(req.password || '') !== ADMIN_PASSWORD) {
+  const pw = adminPassword_();
+  if (!pw || pw === 'ENDRE-MEG') throw new Error('password_not_set');
+  if (String(req.password || '') !== pw) {
     Utilities.sleep(800);
     throw new Error('unauthorized');
   }
