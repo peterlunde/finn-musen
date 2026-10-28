@@ -144,7 +144,7 @@
     list.textContent = '';
     state.candidates.forEach(function (w) {
       var thumb = C.h('span', { class: 'choose-thumb' }, 'Henter…');
-      var btn = C.h('button', { type: 'button', class: 'choose-item', 'data-id': w.id }, thumb, C.h('span', { class: 'switch-name' }, w.name));
+      var btn = C.h('button', { type: 'button', class: 'choose-item', 'data-id': w.id, 'aria-label': 'Velg dette verket' }, thumb);
       btn.addEventListener('click', function () {
         showWork(w);
         setStep2Mode('work');

@@ -226,7 +226,7 @@
       var wk = f.workId ? workById(a.workId) : null;
       checks = h('ul', { class: 'checks' },
         f.workId
-          ? checkItem('Verk: ' + (wk ? wk.name : 'ukjent') + (!m.work && a.workId === f.workId && !m.map ? ' (kartmarkøren ligger for langt unna)' : ''), m.work)
+          ? checkItem((wk ? workLabel(wk) : 'Ukjent verk') + (!m.work && a.workId === f.workId && !m.map ? ' (kartmarkøren ligger for langt unna)' : ''), m.work)
           : checkItem('Verket på kartet', m.map),
         checkItem('Musen på verket', m.mouse));
     }
@@ -262,6 +262,12 @@
     wp.hint.hidden = true;
     wp.setPin('answer', a.mouse, 'answer');
     if (f && (!f.workId || f.workId === a.workId)) { wp.setPin('fasit', f.mouse, 'fasit'); wp.setZone(f.mouse, S.data.tolWork); }
+  }
+
+  // Verkene har ikke navn. De får nummer etter rekkefølgen de ble lagt inn i.
+  function workLabel(w) {
+    var i = (S.data.works || []).map(function (x) { return x.id; }).indexOf(w.id);
+    return 'Verk ' + (i + 1);
   }
 
   function workById(id) {
@@ -361,7 +367,7 @@
       var thumb = h('span', { class: 'switch-thumb row-thumb' });
       C.workImage(w.id).then(function (src) { thumb.appendChild(h('img', { src: src, alt: '' })); }).catch(function () { /* ingen miniatyr */ });
       list.appendChild(h('button', { type: 'button', class: 'row', onclick: function () { S.worksView = { mode: 'edit', id: w.id }; renderTab(); } },
-        h('span', { class: 'row-lead' }, thumb, h('span', { class: 'row-name' }, w.name)),
+        h('span', { class: 'row-lead' }, thumb, h('span', { class: 'row-name' }, workLabel(w))),
         h('span', { class: 'help' }, 'Endre')));
     });
     wrap.appendChild(list);
@@ -372,10 +378,10 @@
     var d = S.data;
     var existing = v.mode === 'edit' ? workById(v.id) : null;
     if (v.mode === 'edit' && !existing) { S.worksView = null; return viewWorks(); }
-    var F = { name: existing ? existing.name : '', pos: existing ? { x: existing.x, y: existing.y } : null, image: null, aspect: null };
+    var F = { pos: existing ? { x: existing.x, y: existing.y } : null, image: null, aspect: null };
 
     var wrap = h('section', { class: 'admin-section' });
-    wrap.appendChild(h('h2', null, existing ? 'Endre verk' : 'Nytt verk'));
+    wrap.appendChild(h('h2', null, existing ? 'Endre ' + workLabel(existing).toLowerCase() : 'Nytt verk'));
     if (existing) {
       wrap.appendChild(h('div', { class: 'callout' },
         h('p', { class: 'callout-title' }, 'Hvor er musen på dette verket?'),
@@ -387,12 +393,8 @@
 
     var err = h('p', { class: 'error', hidden: true });
     var save = h('button', { type: 'button', class: 'btn btn-primary' }, 'Lagre');
-    function ready() { return F.name.trim().length > 0 && !!F.pos && (!!existing || !!F.image); }
+    function ready() { return !!F.pos && (!!existing || !!F.image); }
     function refreshSave() { save.disabled = !ready(); }
-
-    var nameInput = h('input', { id: 'work-name', type: 'text', maxlength: '60', value: F.name });
-    nameInput.addEventListener('input', function () { F.name = nameInput.value; refreshSave(); });
-    wrap.appendChild(h('div', { class: 'field' }, h('label', { for: 'work-name' }, 'Navn på verket'), nameInput));
 
     var chosenFile = null;
     var preview = h('div', { class: 'work-preview', hidden: true });
@@ -432,7 +434,7 @@
     if (existing) {
       buttons.push(h('button', { type: 'button', class: 'btn btn-secondary', onclick: function () {
         var warn = d.fasit && d.fasit.workId === existing.id ? ' Fasit er satt på dette verket og blir også fjernet.' : '';
-        if (!window.confirm('Slette «' + existing.name + '»?' + warn)) return;
+        if (!window.confirm('Slette ' + workLabel(existing).toLowerCase() + '?' + warn)) return;
         api('admin.deleteWork', { id: existing.id }).then(function () { S.worksView = null; return refresh(); })
           .catch(function (ex) { err.textContent = errText(ex.message); err.hidden = false; });
       } }, 'Slett'));
@@ -442,8 +444,8 @@
     save.addEventListener('click', function () {
       save.disabled = true; err.hidden = true;
       var req = existing
-        ? api('admin.updateWork', { id: existing.id, name: F.name.trim(), pos: F.pos, image: F.image || undefined, aspect: F.image ? F.aspect : undefined })
-        : api('admin.addWork', { name: F.name.trim(), pos: F.pos, aspect: F.aspect, image: F.image });
+        ? api('admin.updateWork', { id: existing.id, name: 'Verk', pos: F.pos, image: F.image || undefined, aspect: F.image ? F.aspect : undefined })
+        : api('admin.addWork', { name: 'Verk', pos: F.pos, aspect: F.aspect, image: F.image });
       req.then(function () { if (existing && F.image) C.forgetImage(existing.id); S.worksView = null; return refresh(); }).catch(function (ex) {
         err.textContent = ex.message === 'invalid' ? 'Noe er ugyldig. Sjekk navn, bilde og plassering.' : errText(ex.message);
         err.hidden = false; refreshSave();
@@ -560,7 +562,7 @@
 
     var workBox = h('div', { class: 'compact' });
     var labels = {};
-    d.works.forEach(function (w) { labels[w.id] = w.name; });
+    d.works.forEach(function (w) { labels[w.id] = workLabel(w); });
     var chips = chipRow(labels, function () { return F.workId; }, function (id) {
       if (id === F.workId) return;
       F.workId = id; F.mouse = null; showWork(); wp.setValue(null);
